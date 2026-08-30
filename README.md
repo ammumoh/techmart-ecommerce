@@ -157,11 +157,6 @@ Safaricom Developer Portal for M-Pesa API
 MongoDB for database
 
 React for frontend framework
-👨‍💻 Author
-Your Name
-
-GitHub: @ammumoh
-Made with ❤️ in Kenya 🇰🇪
 
 ## Step 5: Create a `.env.example` File
 
