@@ -11,7 +11,7 @@ const AdminDashboard = ({ onBackToShop }) => {
   const [showOrderDetail, setShowOrderDetail] = useState(false);
   const [updating, setUpdating] = useState(false);
 
-  // Fetch all orders from backend
+  // Fetch all orders
   useEffect(() => {
     fetchOrders();
   }, []);
@@ -39,7 +39,39 @@ const AdminDashboard = ({ onBackToShop }) => {
     }
   };
 
-  // Update order status to Paid
+  // DELETE ALL ORDERS
+  const deleteAllOrders = async () => {
+    if (!window.confirm('⚠️ Are you sure you want to delete ALL orders? This cannot be undone!')) {
+      return;
+    }
+
+    if (!window.confirm('🔴 REALLY delete ALL orders? This is permanent!')) {
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+      
+      // Delete each order one by one
+      for (const order of orders) {
+        await fetch(`${API_URL}/api/orders/${order._id}`, {
+          method: 'DELETE',
+        });
+      }
+      
+      // Refresh orders
+      await fetchOrders();
+      alert('✅ All orders deleted successfully!');
+    } catch (error) {
+      console.error('❌ Error deleting all orders:', error);
+      alert('❌ Failed to delete all orders. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Update order to paid
   const markAsPaid = async (orderId) => {
     setUpdating(true);
     try {
@@ -58,7 +90,6 @@ const AdminDashboard = ({ onBackToShop }) => {
       const updatedOrder = await response.json();
       console.log('✅ Order marked as paid:', updatedOrder);
       
-      // Update local state
       setOrders(orders.map(order => 
         order._id === orderId ? updatedOrder : order
       ));
@@ -72,7 +103,7 @@ const AdminDashboard = ({ onBackToShop }) => {
     }
   };
 
-  // Update order status to Delivered
+  // Update order to delivered
   const markAsDelivered = async (orderId) => {
     setUpdating(true);
     try {
@@ -91,7 +122,6 @@ const AdminDashboard = ({ onBackToShop }) => {
       const updatedOrder = await response.json();
       console.log('✅ Order marked as delivered:', updatedOrder);
       
-      // Update local state
       setOrders(orders.map(order => 
         order._id === orderId ? updatedOrder : order
       ));
@@ -105,7 +135,7 @@ const AdminDashboard = ({ onBackToShop }) => {
     }
   };
 
-  // Delete order
+  // Delete single order
   const deleteOrder = async (orderId) => {
     if (!window.confirm('Are you sure you want to delete this order?')) {
       return;
@@ -124,7 +154,6 @@ const AdminDashboard = ({ onBackToShop }) => {
 
       console.log('🗑️ Order deleted:', orderId);
       
-      // Update local state
       setOrders(orders.filter(order => order._id !== orderId));
       
       alert('🗑️ Order deleted successfully!');
@@ -210,8 +239,6 @@ const AdminDashboard = ({ onBackToShop }) => {
   const pendingOrders = orders.filter(o => !o.isPaid && !o.isDelivered).length;
   const paidOrders = orders.filter(o => o.isPaid && !o.isDelivered).length;
   const deliveredOrders = orders.filter(o => o.isDelivered).length;
-
-  // Calculate total revenue
   const totalRevenue = orders.reduce((sum, order) => sum + order.totalPrice, 0);
 
   return (
@@ -221,9 +248,14 @@ const AdminDashboard = ({ onBackToShop }) => {
           ← Back to Shop
         </button>
         <h1>🛠️ Admin Dashboard</h1>
-        <button className="refresh-btn" onClick={fetchOrders}>
-          🔄 Refresh
-        </button>
+        <div className="admin-header-actions">
+          <button className="refresh-btn" onClick={fetchOrders}>
+            🔄 Refresh
+          </button>
+          <button className="danger-btn" onClick={deleteAllOrders}>
+            🗑️ Delete All Orders
+          </button>
+        </div>
       </div>
 
       {/* Stats Cards */}

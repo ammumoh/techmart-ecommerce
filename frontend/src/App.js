@@ -5,6 +5,8 @@ import Register from './Register';
 import OrderConfirmation from './OrderConfirmation';
 import OrdersPage from './OrdersPage';
 import AdminDashboard from './AdminDashboard';
+import Wishlist from './Wishlist';
+import Review from './Review';
 import raspberryImage from './hero.webp';
 import arduinoImage from './arduino.webp';
 import temperatureSensorImage from './temperature sensor.jpg';
@@ -23,8 +25,7 @@ function App() {
 
   // ========== OTHER STATE ==========
   const [cartItems, setCartItems] = useState([]);
-  const [isDashboardOpen, setIsDashboardOpen] = useState(false);
-  const [activeCategory, setActiveCategory] = useState('all');
+  // activeCategory REMOVED - no longer needed
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [showProductDetail, setShowProductDetail] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -32,6 +33,10 @@ function App() {
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [showOrders, setShowOrders] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
+  const [showWishlist, setShowWishlist] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
   const [orderForm, setOrderForm] = useState({
     fullName: '',
     email: '',
@@ -73,6 +78,11 @@ function App() {
     setIsAuthenticated(false);
     setCurrentUser(null);
     window.location.reload();
+  };
+
+  // ========== FORMAT PRICE FUNCTION ==========
+  const formatPrice = (price) => {
+    return `KSh ${price.toLocaleString()}`;
   };
 
   // ========== FEATURED PRODUCTS ==========
@@ -159,6 +169,14 @@ function App() {
     },
   ];
 
+  // ========== FILTER PRODUCTS ==========
+  const filteredProducts = featuredProducts.filter(product => {
+    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.category.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = categoryFilter === 'all' || product.category === categoryFilter;
+    return matchesSearch && matchesCategory;
+  });
+
   // ========== NAVIGATION FUNCTIONS ==========
   const navigateToOrders = () => {
     setShowOrders(true);
@@ -174,6 +192,10 @@ function App() {
 
   const handleBackFromAdmin = () => {
     setShowAdmin(false);
+  };
+
+  const handleBackFromWishlist = () => {
+    setShowWishlist(false);
   };
 
   // ========== ORDER FUNCTIONS ==========
@@ -329,45 +351,6 @@ function App() {
     });
   };
 
-  const toggleDashboard = () => {
-    setIsDashboardOpen(!isDashboardOpen);
-  };
-
-  const handleCategorySelect = (category) => {
-    setActiveCategory(category);
-    setIsDashboardOpen(false);
-    const productsSection = document.getElementById('products');
-    if (productsSection) {
-      productsSection.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
-
-  const getCategoryIcon = (category) => {
-    const icons = {
-      kits: '📦',
-      accessories: '🎮',
-      tools: '🛠️',
-      sensors: '📡',
-      all: '📋'
-    };
-    return icons[category] || '📋';
-  };
-
-  const getCategoryTitle = (category) => {
-    const titles = {
-      kits: 'Electronics Kits',
-      accessories: 'Accessories',
-      tools: 'Tools & Equipment',
-      sensors: 'Sensors & Modules',
-      all: 'All Products'
-    };
-    return titles[category] || category;
-  };
-
-  const formatPrice = (price) => {
-    return `KSh ${price.toLocaleString()}`;
-  };
-
   const scrollToSection = (sectionId) => {
     const element = document.getElementById(sectionId);
     if (element) {
@@ -413,6 +396,11 @@ function App() {
     return <AdminDashboard onBackToShop={handleBackFromAdmin} />;
   }
 
+  // If showing wishlist page
+  if (showWishlist) {
+    return <Wishlist onBackToShop={handleBackFromWishlist} />;
+  }
+
   // ========== MAIN SHOP RENDER ==========
   return (
     <div className="app-container">
@@ -456,34 +444,11 @@ function App() {
           </div>
         )}
 
-        <button 
-          className={`hyphens-btn ${isDashboardOpen ? 'active' : ''}`}
-          onClick={toggleDashboard}
-          aria-label="Toggle menu"
-        >
-          <div className="hyphens-container">
-            <span className="hyphen"></span>
-            <span className="hyphen"></span>
-            <span className="hyphen"></span>
-          </div>
-        </button>
-
-        <div className={`categories-dropdown ${isDashboardOpen ? 'open' : ''}`}>
-          <nav className="sidebar-nav">
-            <div className="nav-section">
-              <h3 className="nav-label">Categories</h3>
-              {['all', 'kits', 'accessories', 'tools', 'sensors'].map((category) => (
-                <button
-                  key={category}
-                  className={`nav-item ${activeCategory === category ? 'active' : ''}`}
-                  onClick={() => handleCategorySelect(category)}
-                >
-                  <span className="nav-icon">{getCategoryIcon(category)}</span>
-                  <span className="nav-text">{getCategoryTitle(category)}</span>
-                </button>
-              ))}
-            </div>
-          </nav>
+        {/* Wishlist Button */}
+        <div className="sidebar-wishlist-btn">
+          <button className="wishlist-nav-btn" onClick={() => setShowWishlist(true)}>
+            ❤️ Wishlist
+          </button>
         </div>
 
         <div className="sidebar-footer">
@@ -532,6 +497,65 @@ function App() {
                   </button>
                 </div>
               </div>
+
+              {/* Category Dropdown - Top Right */}
+              <div className="hero-dropdown">
+                <div className="dropdown-container">
+                  <button 
+                    className="dropdown-toggle"
+                    onClick={() => setIsCategoryDropdownOpen(!isCategoryDropdownOpen)}
+                  >
+                    <span className="dropdown-label">All Products</span>
+                    <span className={`dropdown-arrow ${isCategoryDropdownOpen ? 'open' : ''}`}>▼</span>
+                  </button>
+                  
+                  {isCategoryDropdownOpen && (
+                    <div className="dropdown-menu">
+                      <div className="dropdown-item" onClick={() => {
+                        setCategoryFilter('all');
+                        setIsCategoryDropdownOpen(false);
+                        scrollToSection('products');
+                      }}>
+                        <span className="dropdown-emoji">📋</span>
+                        <span>All Products</span>
+                      </div>
+                      <div className="dropdown-divider"></div>
+                      <div className="dropdown-item" onClick={() => {
+                        setCategoryFilter('kits');
+                        setIsCategoryDropdownOpen(false);
+                        scrollToSection('products');
+                      }}>
+                        <span className="dropdown-emoji">📦</span>
+                        <span>Kits</span>
+                      </div>
+                      <div className="dropdown-item" onClick={() => {
+                        setCategoryFilter('accessories');
+                        setIsCategoryDropdownOpen(false);
+                        scrollToSection('products');
+                      }}>
+                        <span className="dropdown-emoji">🎮</span>
+                        <span>Accessories</span>
+                      </div>
+                      <div className="dropdown-item" onClick={() => {
+                        setCategoryFilter('tools');
+                        setIsCategoryDropdownOpen(false);
+                        scrollToSection('products');
+                      }}>
+                        <span className="dropdown-emoji">🛠️</span>
+                        <span>Tools</span>
+                      </div>
+                      <div className="dropdown-item" onClick={() => {
+                        setCategoryFilter('sensors');
+                        setIsCategoryDropdownOpen(false);
+                        scrollToSection('products');
+                      }}>
+                        <span className="dropdown-emoji">📡</span>
+                        <span>Sensors</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </section>
@@ -542,8 +566,22 @@ function App() {
             <h2>Featured Products</h2>
             <p>Handpicked selection of our best electronics</p>
           </div>
+
+          {/* Search Section */}
+          <div className="search-filter-container">
+            <div className="search-container">
+              <input
+                type="text"
+                placeholder="🔍 Search products..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="search-input"
+              />
+            </div>
+          </div>
+
           <div className="featured-grid">
-            {featuredProducts.map((product) => (
+            {filteredProducts.map((product) => (
               <div key={product.id} className="featured-card" onClick={() => openProductDetail(product)}>
                 <div className="featured-image">
                   <img 
@@ -651,6 +689,11 @@ function App() {
                   </ul>
                 </div>
               </div>
+            </div>
+
+            {/* Reviews Section */}
+            <div className="modal-reviews">
+              <Review productId={selectedProduct.id} />
             </div>
 
             <div className="modal-order-form">

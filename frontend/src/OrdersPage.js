@@ -6,7 +6,9 @@ const OrdersPage = ({ onBackToShop }) => {
   const [orders, setOrders] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [filter, setFilter] = useState('all'); // all, pending, delivered
+  const [filter, setFilter] = useState('all');
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [showOrderDetail, setShowOrderDetail] = useState(false);
 
   // Fetch orders from backend
   useEffect(() => {
@@ -41,6 +43,7 @@ const OrdersPage = ({ onBackToShop }) => {
   };
 
   const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
     const date = new Date(dateString);
     return date.toLocaleDateString('en-KE', {
       year: 'numeric',
@@ -61,14 +64,14 @@ const OrdersPage = ({ onBackToShop }) => {
     }
   };
 
-  const getStatusIcon = (order) => {
-    if (order.isDelivered) {
-      return '📦';
-    } else if (order.isPaid) {
-      return '💳';
-    } else {
-      return '⏳';
-    }
+  const openOrderDetail = (order) => {
+    setSelectedOrder(order);
+    setShowOrderDetail(true);
+  };
+
+  const closeOrderDetail = () => {
+    setShowOrderDetail(false);
+    setSelectedOrder(null);
   };
 
   // Filter orders
@@ -192,7 +195,7 @@ const OrdersPage = ({ onBackToShop }) => {
                     {order.orderItems.map((item, index) => (
                       <div key={index} className="order-item-detail">
                         <div className="item-image-placeholder">
-                          {item.image ? (
+                          {item.image && typeof item.image === 'string' && item.image.startsWith('http') ? (
                             <img src={item.image} alt={item.name} className="order-item-image" />
                           ) : (
                             <span className="item-emoji">🔧</span>
@@ -222,15 +225,131 @@ const OrdersPage = ({ onBackToShop }) => {
                   </div>
                 </div>
 
+                {/* Order Tracking Timeline */}
+                <div className="order-tracking">
+                  <h4>📦 Order Status</h4>
+                  <div className="order-timeline">
+                    <div className={`timeline-item ${order.createdAt ? 'completed' : ''}`}>
+                      <span className="timeline-icon">✅</span>
+                      <span className="timeline-text">Order Placed</span>
+                      {order.createdAt && (
+                        <span className="timeline-date">{formatDate(order.createdAt)}</span>
+                      )}
+                    </div>
+                    
+                    <div className={`timeline-item ${order.isPaid ? 'completed' : 'pending'}`}>
+                      <span className="timeline-icon">{order.isPaid ? '💰' : '⏳'}</span>
+                      <span className="timeline-text">Payment Confirmed</span>
+                      {order.paidAt && (
+                        <span className="timeline-date">{formatDate(order.paidAt)}</span>
+                      )}
+                      {!order.isPaid && (
+                        <span className="timeline-waiting">Waiting for payment...</span>
+                      )}
+                    </div>
+                    
+                    <div className={`timeline-item ${order.isDelivered ? 'completed' : 'pending'}`}>
+                      <span className="timeline-icon">{order.isDelivered ? '📦' : '🚚'}</span>
+                      <span className="timeline-text">{order.isDelivered ? 'Delivered' : 'Processing'}</span>
+                      {order.deliveredAt && (
+                        <span className="timeline-date">{formatDate(order.deliveredAt)}</span>
+                      )}
+                      {!order.isDelivered && order.isPaid && (
+                        <span className="timeline-waiting">Preparing for delivery...</span>
+                      )}
+                      {!order.isDelivered && !order.isPaid && (
+                        <span className="timeline-waiting">Awaiting payment...</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
                 <div className="order-footer">
                   <span className="payment-method">💳 {order.paymentMethod}</span>
                   <div className="order-actions">
-                    <button className="view-details-btn">View Details</button>
+                    <button 
+                      className="view-details-btn" 
+                      onClick={() => openOrderDetail(order)}
+                    >
+                      👁️ View Details
+                    </button>
                   </div>
                 </div>
               </div>
             ))
           )}
+        </div>
+      )}
+
+      {/* ===== ORDER DETAIL MODAL ===== */}
+      {showOrderDetail && selectedOrder && (
+        <div className="order-detail-modal-overlay" onClick={closeOrderDetail}>
+          <div className="order-detail-modal" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close-btn" onClick={closeOrderDetail}>×</button>
+            
+            <h2 className="modal-title">📋 Order Details</h2>
+            <p className="modal-order-id">Order #{selectedOrder._id}</p>
+            
+            {/* Order Info Grid */}
+            <div className="order-detail-grid">
+              {/* Customer Info */}
+              <div className="detail-section">
+                <h4>👤 Customer</h4>
+                <p><strong>Name:</strong> {selectedOrder.user}</p>
+                <p><strong>Email:</strong> {selectedOrder.shippingAddress?.email || 'N/A'}</p>
+                <p><strong>Phone:</strong> {selectedOrder.shippingAddress?.phone}</p>
+              </div>
+              
+              {/* Shipping Info */}
+              <div className="detail-section">
+                <h4>📍 Shipping Address</h4>
+                <p><strong>Address:</strong> {selectedOrder.shippingAddress?.address}</p>
+                <p><strong>City:</strong> {selectedOrder.shippingAddress?.city}</p>
+                {selectedOrder.shippingAddress?.specialInstructions && (
+                  <p><strong>Instructions:</strong> {selectedOrder.shippingAddress.specialInstructions}</p>
+                )}
+              </div>
+              
+              {/* Order Items */}
+              <div className="detail-section full-width">
+                <h4>📦 Items</h4>
+                {selectedOrder.orderItems.map((item, index) => (
+                  <div key={index} className="detail-item">
+                    <span className="detail-item-name">{item.name}</span>
+                    <span className="detail-item-qty">× {item.quantity}</span>
+                    <span className="detail-item-price">{formatPrice(item.price * item.quantity)}</span>
+                  </div>
+                ))}
+                <div className="detail-total">
+                  <strong>Total:</strong>
+                  <span>{formatPrice(selectedOrder.totalPrice)}</span>
+                </div>
+              </div>
+              
+              {/* Payment Info */}
+              <div className="detail-section">
+                <h4>💳 Payment</h4>
+                <p><strong>Method:</strong> {selectedOrder.paymentMethod}</p>
+                <p><strong>Status:</strong> {selectedOrder.isPaid ? '✅ Paid' : '⏳ Pending'}</p>
+                {selectedOrder.paidAt && (
+                  <p><strong>Paid At:</strong> {formatDate(selectedOrder.paidAt)}</p>
+                )}
+              </div>
+              
+              {/* Delivery Info */}
+              <div className="detail-section">
+                <h4>📦 Delivery</h4>
+                <p><strong>Status:</strong> {selectedOrder.isDelivered ? '✅ Delivered' : '⏳ Pending'}</p>
+                {selectedOrder.deliveredAt && (
+                  <p><strong>Delivered At:</strong> {formatDate(selectedOrder.deliveredAt)}</p>
+                )}
+              </div>
+            </div>
+            
+            <button className="close-detail-btn" onClick={closeOrderDetail}>
+              Close
+            </button>
+          </div>
         </div>
       )}
     </div>

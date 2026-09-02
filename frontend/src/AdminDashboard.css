@@ -565,3 +565,38 @@
     width: 100%;
   }
 }
+/* Admin Header Actions */
+.admin-header-actions {
+  display: flex;
+  gap: 0.8rem;
+  align-items: center;
+}
+
+.danger-btn {
+  padding: 0.6rem 1.5rem;
+  background: #e74c3c;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+}
+
+.danger-btn:hover {
+  background: #c0392b;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(231, 76, 60, 0.4);
+}
+
+@media (max-width: 768px) {
+  .admin-header-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .danger-btn {
+    width: 100%;
+  }
+}
