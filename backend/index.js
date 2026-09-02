@@ -41,7 +41,7 @@ app.get("/", (req, res) => {
 });
 
 // Connect to the fridge (MongoDB)
-const mongoURI = "mongodb://mumoney6_db_user:Du86PXFzJD9jpdAB@ac-akm4p8p-shard-00-00.aqnv9qb.mongodb.net:27017,ac-akm4p8p-shard-00-01.aqnv9qb.mongodb.net:27017,ac-akm4p8p-shard-00-02.aqnv9qb.mongodb.net:27017/ecommerce?ssl=true&replicaSet=atlas-u9fm3e-shard-0&authSource=admin&appName=Cluster0";
+const mongoURI = "mongodb://techmart_user:TechMart2025@ac-akm4p8p-shard-00-00.aqnv9qb.mongodb.net:27017,ac-akm4p8p-shard-00-01.aqnv9qb.mongodb.net:27017,ac-akm4p8p-shard-00-02.aqnv9qb.mongodb.net:27017/ecommerce?ssl=true&replicaSet=atlas-u9fm3e-shard-0&authSource=admin&appName=Cluster0";
 
 // Connect to the fridge FIRST, then open the kitchen
 mongoose.connect(mongoURI)
