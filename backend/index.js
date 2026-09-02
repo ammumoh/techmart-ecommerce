@@ -24,15 +24,15 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-app.use(cors());           // Allow dining room to talk to kitchen
-app.use(express.json());   // Let the kitchen understand JSON (like a menu)
+app.use(cors());
+app.use(express.json());
 
 // Routes - REGISTER M-PESA FIRST
 console.log('📦 Registering routes...');
-app.use("/api/mpesa", mpesaRoutes);       // M-PESA ROUTES - MUST BE FIRST
-app.use("/api/products", productRoutes);  // Use product routes
-app.use("/api/users", userRoutes);        // Use user routes
-app.use("/api/orders", orderRoutes);      // Use order routes
+app.use("/api/mpesa", mpesaRoutes);
+app.use("/api/products", productRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/orders", orderRoutes);
 console.log('✅ Routes registered!');
 
 // Test route
