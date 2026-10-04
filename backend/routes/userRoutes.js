@@ -1,17 +1,18 @@
 // backend/routes/userRoutes.js - With manual password hashing
 const express = require("express");
 const router = express.Router();
-const User = require("../models/User");
+const User = require("../models/user");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key_here';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // REGISTER - Manual password hashing
 router.post("/register", async (req, res) => {
   console.log('📤 Registration request received:', req.body.email);
   
   try {
+    if (!JWT_SECRET) return res.status(503).json({ success: false, message: 'Server authentication is not configured' });
     const { name, email, password, phone, address, city } = req.body;
 
     if (!name || !email || !password || !phone) {
@@ -82,6 +83,7 @@ router.post("/login", async (req, res) => {
   console.log('📤 Login request received:', req.body.email);
   
   try {
+    if (!JWT_SECRET) return res.status(503).json({ success: false, message: 'Server authentication is not configured' });
     const { email, password } = req.body;
 
     if (!email || !password) {

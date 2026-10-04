@@ -30,7 +30,7 @@ const MpesaPayment = ({ order, onPaymentComplete, onCancel }) => {
     setPaymentStatus('processing');
 
     try {
-      const API_URL = 'http://localhost:5000';
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
       const formattedPhone = `254${cleanPhone}`;
       
       console.log('📤 Sending request to:', `${API_URL}/api/mpesa/stkpush-mock`);
@@ -54,10 +54,8 @@ const MpesaPayment = ({ order, onPaymentComplete, onCancel }) => {
       console.log('📥 Response:', data);
 
       if (data.success) {
-        setPaymentStatus('success');
-        setTimeout(() => {
-          onPaymentComplete(order);
-        }, 4000);
+        setPaymentStatus('processing');
+        setError('Payment request sent. Confirm the prompt on your phone, then check payment status here.');
       } else {
         setPaymentStatus('failed');
         setError(data.message || 'Payment failed. Please try again.');
@@ -73,7 +71,7 @@ const MpesaPayment = ({ order, onPaymentComplete, onCancel }) => {
 
   const checkPaymentStatus = async () => {
     try {
-      const API_URL = 'http://localhost:5000';
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
       const response = await fetch(`${API_URL}/api/mpesa/status/${order._id}`);
       const data = await response.json();
       console.log('📥 Payment status:', data);
@@ -84,7 +82,7 @@ const MpesaPayment = ({ order, onPaymentComplete, onCancel }) => {
           onPaymentComplete(order);
         }, 1000);
       } else {
-        setError('Payment still pending. Please wait...');
+        setError('Payment is still pending. Confirm the M-Pesa prompt, then check again.');
       }
     } catch (error) {
       console.error('Error checking payment status:', error);

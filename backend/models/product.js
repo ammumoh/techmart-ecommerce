@@ -26,7 +26,10 @@ const productSchema = new mongoose.Schema({
   stock: {
     type: Number,           // How many items are available
     default: 0              // Start with 0 if not specified
-  }
+  },
+  specifications: { type: [String], default: [] },
+  featured: { type: Boolean, default: false },
+  warranty: { type: String, default: 'Contact us for warranty details' }
 }, {
   timestamps: true          // Automatically add createdAt and updatedAt
 });

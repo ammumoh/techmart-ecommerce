@@ -22,7 +22,7 @@ const AdminDashboard = ({ onBackToShop }) => {
     
     try {
       const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-      const response = await fetch(`${API_URL}/api/orders`);
+      const response = await fetch(`${API_URL}/api/orders`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
       
       if (!response.ok) {
         throw new Error('Failed to fetch orders');
@@ -57,6 +57,7 @@ const AdminDashboard = ({ onBackToShop }) => {
       for (const order of orders) {
         await fetch(`${API_URL}/api/orders/${order._id}`, {
           method: 'DELETE',
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
         });
       }
       
@@ -80,6 +81,7 @@ const AdminDashboard = ({ onBackToShop }) => {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
         }
       });
 
@@ -112,6 +114,7 @@ const AdminDashboard = ({ onBackToShop }) => {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
         }
       });
 
@@ -146,6 +149,7 @@ const AdminDashboard = ({ onBackToShop }) => {
       const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
       const response = await fetch(`${API_URL}/api/orders/${orderId}`, {
         method: 'DELETE',
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
       });
 
       if (!response.ok) {

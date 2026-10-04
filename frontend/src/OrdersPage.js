@@ -21,7 +21,10 @@ const OrdersPage = ({ onBackToShop }) => {
     
     try {
       const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-      const response = await fetch(`${API_URL}/api/orders`);
+      const user = JSON.parse(localStorage.getItem('user') || 'null');
+      const token = localStorage.getItem('token');
+      if (!user || !token) throw new Error('Sign in to view your orders. Guest orders can be looked up using the order confirmation details.');
+      const response = await fetch(`${API_URL}/api/orders/user/${user.id}`, { headers: { Authorization: `Bearer ${token}` } });
       
       if (!response.ok) {
         throw new Error('Failed to fetch orders');

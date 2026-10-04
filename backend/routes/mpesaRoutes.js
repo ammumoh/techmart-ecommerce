@@ -1,7 +1,7 @@
 // backend/routes/mpesaRoutes.js
 const express = require("express");
 const router = express.Router();
-const Order = require("../models/Order");
+const Order = require("../models/order");
 
 console.log('🔥 mpesaRoutes.js is loading...');
 
@@ -31,50 +31,26 @@ router.post('/stkpush-mock', async (req, res) => {
   console.log('📤 MOCK route called!');
   
   try {
-    const { orderId, phoneNumber, amount } = req.body;
+    if (process.env.NODE_ENV === 'production') return res.status(404).json({ success: false, message: 'Mock payments are disabled in production' });
+    const { orderId, phoneNumber } = req.body;
+    const order = await Order.findById(orderId);
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+    if (order.isPaid) return res.status(409).json({ success: false, message: 'This order is already paid' });
+    const amount = order.totalPrice;
+    if (!phoneNumber || !/^2547\d{8}$/.test(phoneNumber)) return res.status(400).json({ success: false, message: 'Enter a valid Kenyan Safaricom phone number' });
     console.log('📤 Data:', { orderId, phoneNumber, amount });
 
-    if (!orderId) {
-      return res.status(400).json({ success: false, message: 'Order ID required' });
-    }
-
-    let order = null;
-    try {
-      order = await Order.findById(orderId);
-    } catch (err) {
-      console.log('Order lookup error:', err.message);
-    }
-
     const mockId = 'MOCK_' + Date.now();
-
-    if (order) {
-      order.mpesaCheckoutRequestId = mockId;
-      order.mpesaPhoneNumber = phoneNumber;
-      await order.save();
-      console.log(`✅ Order ${orderId} updated with mock ID`);
-      
-      setTimeout(async () => {
-        try {
-          const updatedOrder = await Order.findById(orderId);
-          if (updatedOrder) {
-            updatedOrder.isPaid = true;
-            updatedOrder.paidAt = new Date();
-            updatedOrder.paymentMethod = 'M-Pesa';
-            await updatedOrder.save();
-            console.log(`✅ MOCK: Order ${orderId} marked as PAID!`);
-          }
-        } catch (err) {
-          console.error('Auto-pay error:', err);
-        }
-      }, 3000);
-    }
+    order.mpesaCheckoutRequestId = mockId;
+    order.mpesaPhoneNumber = phoneNumber;
+    await order.save();
 
     res.json({
       success: true,
       message: 'MOCK: Payment initiated successfully!',
       checkoutRequestId: mockId,
-      orderFound: !!order,
-      note: order ? 'Order will be auto-paid in 3 seconds' : 'Test mode - no order found'
+      orderFound: true,
+      note: 'Mock mode does not confirm or record a real payment'
     });
 
   } catch (error) {
@@ -93,7 +69,12 @@ router.post('/stkpush', async (req, res) => {
   console.log('📤 REAL M-Pesa route called!');
   
   try {
-    const { orderId, phoneNumber, amount } = req.body;
+    const { orderId, phoneNumber } = req.body;
+    const order = await Order.findById(orderId);
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+    if (order.isPaid) return res.status(409).json({ success: false, message: 'This order is already paid' });
+    const amount = order.totalPrice;
+    if (!phoneNumber || !/^2547\d{8}$/.test(phoneNumber)) return res.status(400).json({ success: false, message: 'Enter a valid Kenyan Safaricom phone number' });
 
     // Get credentials from environment
     const MPESA_CONSUMER_KEY = process.env.MPESA_CONSUMER_KEY;

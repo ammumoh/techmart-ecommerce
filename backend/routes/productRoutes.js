@@ -3,7 +3,8 @@ const express = require("express");
 const router = express.Router();
 
 // Import the Product model (the menu template)
-const Product = require("../models/Product");
+const Product = require("../models/product");
+const { protect, adminOnly } = require('../middleware/auth');
 
 // Route 1: Get all products (see the whole menu)
 router.get("/", async (req, res) => {
@@ -29,14 +30,17 @@ router.get("/:id", async (req, res) => {
 });
 
 // Route 3: Add a new product (add item to menu)
-router.post("/", async (req, res) => {
+router.post("/", protect, adminOnly, async (req, res) => {
   const product = new Product({
     name: req.body.name,
     price: req.body.price,
     description: req.body.description,
     image: req.body.image,
     category: req.body.category,
-    stock: req.body.stock
+    stock: req.body.stock,
+    specifications: req.body.specifications,
+    featured: req.body.featured,
+    warranty: req.body.warranty
   });
 
   try {
@@ -48,7 +52,7 @@ router.post("/", async (req, res) => {
 });
 
 // Route 4: Update a product (change menu item)
-router.put("/:id", async (req, res) => {
+router.put("/:id", protect, adminOnly, async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
     if (!product) {
@@ -62,6 +66,9 @@ router.put("/:id", async (req, res) => {
     if (req.body.image) product.image = req.body.image;
     if (req.body.category) product.category = req.body.category;
     if (req.body.stock != null) product.stock = req.body.stock;
+    if (req.body.specifications) product.specifications = req.body.specifications;
+    if (req.body.featured != null) product.featured = req.body.featured;
+    if (req.body.warranty) product.warranty = req.body.warranty;
 
     const updatedProduct = await product.save();
     res.json(updatedProduct);
@@ -71,7 +78,7 @@ router.put("/:id", async (req, res) => {
 });
 
 // Route 5: Delete a product (remove from menu)
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", protect, adminOnly, async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
     if (!product) {

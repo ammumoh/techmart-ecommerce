@@ -1,114 +1,98 @@
-// This helps us create routes (doors in the kitchen)
-const express = require("express");
+const express = require('express');
 const router = express.Router();
+const Order = require('../models/order');
+const Product = require('../models/product');
+const { protect, adminOnly } = require('../middleware/auth');
 
-// Import the Order model
-const Order = require("../models/Order");
-
-// Route 1: Create a new order (place order)
-router.post("/", async (req, res) => {
+// Create totals and product descriptions on the server so clients cannot alter prices.
+router.post('/', protect, async (req, res) => {
+  let reserved = [];
   try {
-    const {
-      user,
-      orderItems,
-      shippingAddress,
-      paymentMethod,
-      totalPrice
-    } = req.body;
-
-    // Check if order has items
-    if (!orderItems || orderItems.length === 0) {
-      return res.status(400).json({ message: "No order items" });
+    const { orderItems, shippingAddress, paymentMethod = 'Cash on Delivery', customerName } = req.body;
+    if (!Array.isArray(orderItems) || !orderItems.length) return res.status(400).json({ message: 'Your cart is empty' });
+    if (!shippingAddress?.address?.trim() || !shippingAddress?.city?.trim() || !shippingAddress?.phone?.trim() || !shippingAddress?.email?.trim()) {
+      return res.status(400).json({ message: 'Complete your delivery address, city, phone, and email' });
     }
-
-    // Create new order
-    const order = new Order({
-      user,
-      orderItems,
+    const normalizedItems = [];
+    for (const item of orderItems) {
+      const product = await Product.findById(item.product);
+      const quantity = Number(item.quantity);
+      if (!product) return res.status(400).json({ message: 'A product in your cart is no longer available' });
+      if (!Number.isInteger(quantity) || quantity < 1) return res.status(400).json({ message: 'Invalid item quantity' });
+      normalizedItems.push({ product: product._id.toString(), name: product.name, price: product.price, quantity, image: product.image });
+    }
+    const totalPrice = normalizedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    for (const item of normalizedItems) {
+      const product = await Product.findOneAndUpdate(
+        { _id: item.product, stock: { $gte: item.quantity } },
+        { $inc: { stock: -item.quantity } },
+        { new: true }
+      );
+      if (!product) {
+        await Promise.all(reserved.map(previous => Product.updateOne({ _id: previous.product }, { $inc: { stock: previous.quantity } })));
+        return res.status(409).json({ message: `${item.name} is out of stock or the available quantity changed` });
+      }
+      reserved.push(item);
+    }
+    const order = await Order.create({
+      user: req.user._id.toString(),
+      orderItems: normalizedItems,
       shippingAddress,
       paymentMethod,
       totalPrice
     });
-
-    const createdOrder = await order.save();  // Save to fridge
-    res.status(201).json(createdOrder);
+    res.status(201).json(order);
   } catch (err) {
+    if (reserved.length) await Promise.all(reserved.map(item => Product.updateOne({ _id: item.product }, { $inc: { stock: item.quantity } })));
     res.status(400).json({ message: err.message });
   }
 });
 
-// Route 2: Get order by ID
-router.get("/:id", async (req, res) => {
-  try {
-    const order = await Order.findById(req.params.id).populate("user", "name email");
-    
-    if (!order) {
-      return res.status(404).json({ message: "Order not found" });
-    }
+router.get('/user/:userId', protect, async (req, res) => {
+  if (!req.user.isAdmin && req.user._id.toString() !== req.params.userId) return res.status(403).json({ message: 'You can only view your own orders' });
+  try { res.json(await Order.find({ user: req.params.userId }).sort({ createdAt: -1 })); }
+  catch (err) { res.status(500).json({ message: err.message }); }
+});
 
+router.get('/', protect, adminOnly, async (_req, res) => {
+  try { res.json(await Order.find().sort({ createdAt: -1 })); }
+  catch (err) { res.status(500).json({ message: err.message }); }
+});
+
+router.get('/:id', protect, async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+    if (!req.user.isAdmin && order.user !== req.user._id.toString()) return res.status(403).json({ message: 'You can only view your own orders' });
     res.json(order);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
+  } catch (err) { res.status(400).json({ message: err.message }); }
 });
 
-// Route 3: Get all orders for a specific user
-router.get("/user/:userId", async (req, res) => {
-  try {
-    const orders = await Order.find({ user: req.params.userId });
-    res.json(orders);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
-
-// Route 4: Get all orders (for admin)
-router.get("/", async (req, res) => {
-  try {
-    const orders = await Order.find().populate("user", "name email");
-    res.json(orders);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
-
-// Route 5: Update order to paid
-router.put("/:id/pay", async (req, res) => {
+router.put('/:id/pay', protect, adminOnly, async (req, res) => {
   try {
     const order = await Order.findById(req.params.id);
-
-    if (!order) {
-      return res.status(404).json({ message: "Order not found" });
-    }
-
-    order.isPaid = true;
-    order.paidAt = Date.now();
-
-    const updatedOrder = await order.save();
-    res.json(updatedOrder);
-  } catch (err) {
-    res.status(400).json({ message: err.message });
-  }
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+    order.isPaid = true; order.paidAt = new Date();
+    res.json(await order.save());
+  } catch (err) { res.status(400).json({ message: err.message }); }
 });
 
-// Route 6: Update order to delivered
-router.put("/:id/deliver", async (req, res) => {
+router.put('/:id/deliver', protect, adminOnly, async (req, res) => {
   try {
     const order = await Order.findById(req.params.id);
-
-    if (!order) {
-      return res.status(404).json({ message: "Order not found" });
-    }
-
-    order.isDelivered = true;
-    order.deliveredAt = Date.now();
-
-    const updatedOrder = await order.save();
-    res.json(updatedOrder);
-  } catch (err) {
-    res.status(400).json({ message: err.message });
-  }
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+    order.isDelivered = true; order.deliveredAt = new Date();
+    res.json(await order.save());
+  } catch (err) { res.status(400).json({ message: err.message }); }
 });
 
-// Export the router
+router.delete('/:id', protect, adminOnly, async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+    await order.deleteOne();
+    res.json({ message: 'Order deleted' });
+  } catch (err) { res.status(400).json({ message: err.message }); }
+});
+
 module.exports = router;

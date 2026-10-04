@@ -25,6 +25,8 @@ function App() {
 
   // ========== OTHER STATE ==========
   const [cartItems, setCartItems] = useState([]);
+  const [backendProducts, setBackendProducts] = useState([]);
+  const [catalogLoaded, setCatalogLoaded] = useState(false);
   // activeCategory REMOVED - no longer needed
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [showProductDetail, setShowProductDetail] = useState(false);
@@ -46,6 +48,13 @@ function App() {
     city: '',
     specialInstructions: ''
   });
+
+  useEffect(() => {
+    const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+    fetch(`${API_URL}/api/products`).then(response => response.ok ? response.json() : [])
+      .then(products => setBackendProducts(Array.isArray(products) ? products : []))
+      .catch(() => setBackendProducts([])).finally(() => setCatalogLoaded(true));
+  }, []);
 
   // ========== CHECK IF USER IS ALREADY LOGGED IN ==========
   useEffect(() => {
@@ -170,9 +179,46 @@ function App() {
   ];
 
   // ========== FILTER PRODUCTS ==========
-  const filteredProducts = featuredProducts.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.category.toLowerCase().includes(searchTerm.toLowerCase());
+  const usableBackendProducts = backendProducts.filter(product =>
+    product && typeof product.name === 'string' && product.name.trim() &&
+    Number.isFinite(Number(product.price)) && typeof product.category === 'string' && product.category.trim()
+  );
+  const products = catalogLoaded
+    ? (() => {
+      const matchedNames = new Set();
+      const originalCatalog = featuredProducts.map(localProduct => {
+        const key = localProduct.name.trim().toLowerCase();
+        const storedProduct = usableBackendProducts.find(product => product.name.trim().toLowerCase() === key);
+        if (!storedProduct) return { ...localProduct, stock: 0 };
+        matchedNames.add(key);
+        return {
+          ...localProduct,
+          ...storedProduct,
+          id: storedProduct._id || localProduct.id,
+          name: storedProduct.name.trim(),
+          price: Number(storedProduct.price),
+          // Keep bundled images for the original catalog, independent of backend hosting.
+          image: localProduct.image,
+          specifications: Array.isArray(storedProduct.specifications) && storedProduct.specifications.length
+            ? storedProduct.specifications
+            : localProduct.specifications
+        };
+      });
+      const customProducts = usableBackendProducts
+        .filter(product => !matchedNames.has(product.name.trim().toLowerCase()))
+        .map(product => ({
+          ...product,
+          id: product._id,
+          price: Number(product.price),
+          image: product.image || raspberryImage,
+          specifications: Array.isArray(product.specifications) ? product.specifications : []
+        }));
+      return [...originalCatalog, ...customProducts];
+    })()
+    : featuredProducts;
+  const filteredProducts = products.filter(product => {
+    const matchesSearch = (product.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (product.category || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = categoryFilter === 'all' || product.category === categoryFilter;
     return matchesSearch && matchesCategory;
   });
@@ -209,16 +255,9 @@ function App() {
 
     try {
       const orderData = {
-        user: orderForm.fullName,
-        orderItems: [
-          {
-            product: String(selectedProduct.id),
-            name: selectedProduct.name,
-            price: selectedProduct.price,
-            quantity: orderForm.quantity,
-            image: typeof selectedProduct.image === 'string' ? selectedProduct.image : 'placeholder.jpg'
-          }
-        ],
+        userId: currentUser?.id,
+        customerName: orderForm.fullName,
+        orderItems: [{ product: selectedProduct.id, quantity: Number(orderForm.quantity) }],
         shippingAddress: {
           address: orderForm.deliveryAddress,
           city: orderForm.city,
@@ -226,8 +265,7 @@ function App() {
           email: orderForm.email,
           specialInstructions: orderForm.specialInstructions
         },
-        paymentMethod: 'Cash on Delivery',
-        totalPrice: selectedProduct.price * orderForm.quantity
+        paymentMethod: 'Cash on Delivery'
       };
 
       console.log('📦 Sending order data:', orderData);
@@ -238,6 +276,7 @@ function App() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(localStorage.getItem('token') ? { Authorization: `Bearer ${localStorage.getItem('token')}` } : {}),
         },
         body: JSON.stringify(orderData)
       });
@@ -595,6 +634,7 @@ function App() {
                 <div className="featured-info">
                   <h3 className="featured-name">{product.name}</h3>
                   <p className="featured-category">{product.category}</p>
+                  {catalogLoaded && <p className="featured-stock">{Number(product.stock) > 0 ? `${product.stock} in stock` : 'Currently unavailable'}</p>}
                   <div className="featured-footer">
                     <span className="featured-price">{formatPrice(product.price)}</span>
                     <button className="add-to-cart-btn-small">
@@ -624,18 +664,18 @@ function App() {
                 </div>
                 <div className="about-item">
                   <span className="about-icon">🚀</span>
-                  <h4>Fast Shipping</h4>
-                  <p>Quick delivery to get your projects started right away</p>
+                  <h4>Delivery</h4>
+                  <p>Delivery availability, fees, and timing are confirmed before an order is dispatched.</p>
                 </div>
                 <div className="about-item">
                   <span className="about-icon">💡</span>
                   <h4>Expert Support</h4>
-                  <p>Technical support to help you with your projects</p>
+                  <p>Contact details will be published here when the shop support channel is configured.</p>
                 </div>
                 <div className="about-item">
                   <span className="about-icon">🛡️</span>
-                  <h4>Warranty</h4>
-                  <p>All products come with a satisfaction guarantee</p>
+                  <h4>Returns & Warranty</h4>
+                  <p>Ask the shop to confirm the applicable terms for each product before purchase.</p>
                 </div>
               </div>
             </div>
@@ -654,12 +694,12 @@ function App() {
 
         {/* Footer */}
         <footer className="main-footer">
-          <p>© 2026 TechMart - Your trusted electronics partner</p>
-          <div className="footer-links">
-            <span>About</span>
-            <span>Contact</span>
-            <span>Terms</span>
-            <span>Privacy</span>
+            <p>© {new Date().getFullYear()} TechMart · Electronics and components for makers</p>
+            <div className="footer-links">
+            <a href="#about">About TechMart</a>
+            <span>Contact details to be added before launch</span>
+            <span>Delivery fees and timing are confirmed with you before dispatch.</span>
+            <span>Ask us about returns and warranty terms before ordering.</span>
           </div>
         </footer>
       </main>
@@ -797,9 +837,9 @@ function App() {
                     type="button" 
                     className="btn-add-to-cart" 
                     onClick={addToCartWithDetails}
-                    disabled={isLoading}
+                    disabled={isLoading || !isAuthenticated || !selectedProduct._id || (catalogLoaded && Number(selectedProduct.stock) < 1)}
                   >
-                    {isLoading ? '⏳ Placing Order...' : '🛒 Place Order'}
+                    {!isAuthenticated ? 'Sign in to place an order' : !selectedProduct._id ? 'Ordering unavailable' : catalogLoaded && Number(selectedProduct.stock) < 1 ? 'Currently unavailable' : isLoading ? '⏳ Placing Order...' : '🛒 Place Order'}
                   </button>
                   <button type="button" className="btn-cancel" onClick={closeProductDetail}>
                     Cancel
