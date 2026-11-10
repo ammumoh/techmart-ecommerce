@@ -12,6 +12,7 @@ const cors = require("cors");
 const mongoose = require("mongoose");
 const path = require('path');
 const Product = require('./models/Product');
+
 // Import routes
 const productRoutes = require("./routes/productRoutes");
 const userRoutes = require("./routes/userRoutes");
@@ -25,7 +26,14 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: [
+    'http://localhost:3000',
+    'https://techmart-frontend.vercel.app' // We will update this with your actual Vercel URL later
+  ],
+  credentials: true
+}));
+
 app.use(express.json());
 app.use('/catalog', express.static(path.join(__dirname, '../frontend/src')));
 
