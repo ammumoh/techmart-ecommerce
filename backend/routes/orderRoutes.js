@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Order = require('../models/order');
-const Product = require('../models/product');
+const Product = require('../models/Product');
 const { protect, adminOnly } = require('../middleware/auth');
 
 // Create totals and product descriptions on the server so clients cannot alter prices.
