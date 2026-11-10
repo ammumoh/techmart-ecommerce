@@ -11,8 +11,7 @@ const cors = require("cors");
 // This helps us talk to the fridge (MongoDB)
 const mongoose = require("mongoose");
 const path = require('path');
-const Product = require('./models/product');
-
+const Product = require('./models/Product');
 // Import routes
 const productRoutes = require("./routes/productRoutes");
 const userRoutes = require("./routes/userRoutes");
