@@ -29,7 +29,7 @@ const PORT = process.env.PORT || 5000;
 app.use(cors({
   origin: [
     'http://localhost:3000',
-    'https://techmart-frontend.vercel.app' // We will update this with your actual Vercel URL later
+    'https://techmart-ecommerce-ke.vercel.app' // We will update this with your actual Vercel URL later
   ],
   credentials: true
 }));
