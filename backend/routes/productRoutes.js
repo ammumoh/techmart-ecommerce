@@ -3,7 +3,7 @@ const express = require("express");
 const router = express.Router();
 
 // Import the Product model (the menu template)
-const Product = require("../models/product");
+const Product = require("../models/Product");
 const { protect, adminOnly } = require('../middleware/auth');
 
 // Route 1: Get all products (see the whole menu)
